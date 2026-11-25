@@ -1638,13 +1638,13 @@
           <p class="text-[11px] font-semibold text-slate-700">Customize Salary-to-Salary Cycle</p>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
-              <label for="cycle-day-input" class="block text-[10px] font-semibold text-slate-500 mb-1">Salary Day of Month (1–28)</label>
+              <label for="cycle-day-input" class="block text-[10px] font-semibold text-slate-500 mb-1">Salary Day of Month (1–31)</label>
               <input
                 id="cycle-day-input"
                 type="number"
                 inputmode="numeric"
                 min="1"
-                max="28"
+                max="31"
                 value="25"
                 class="w-full px-3 py-1.5 rounded-xl bg-slate-100 text-xs font-semibold text-slate-900 tabular-nums focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
@@ -2535,7 +2535,7 @@
             state.ccPayments = Array.isArray(parsed.ccPayments) ? parsed.ccPayments : [];
             state.salaryCycleConfig = (parsed.salaryCycleConfig && typeof parsed.salaryCycleConfig === 'object')
               ? {
-                  day: Math.min(28, Math.max(1, parseInt(parsed.salaryCycleConfig.day, 10) || 25)),
+                  day: Math.min(31, Math.max(1, parseInt(parsed.salaryCycleConfig.day, 10) || 25)),
                   weekendMode: parsed.salaryCycleConfig.weekendMode || 'fri_sat'
                 }
               : { day: 25, weekendMode: 'fri_sat' };
@@ -4614,14 +4614,16 @@
     // --- Salary-to-Salary Cycle Engine (25th payday; Fri/Sat shifts earlier to Thursday) ---
     function getSalaryCycleConfig() {
       const cfg = state.salaryCycleConfig || {};
-      const day = Math.min(28, Math.max(1, parseInt(cfg.day, 10) || 25));
+      const day = Math.min(31, Math.max(1, parseInt(cfg.day, 10) || 25));
       const weekendMode = cfg.weekendMode || 'fri_sat';
       return { day, weekendMode };
     }
 
     function getSalaryPaydayISO(year, monthIndex) {
       const { day, weekendMode } = getSalaryCycleConfig();
-      const d = new Date(year, monthIndex, day);
+      const lastDayOfMonth = new Date(year, monthIndex + 1, 0).getDate();
+      const clampedDay = Math.min(day, lastDayOfMonth);
+      const d = new Date(year, monthIndex, clampedDay);
       const dow = d.getDay(); // 0=Sun, 5=Fri, 6=Sat
       if (weekendMode === 'fri_sat') {
         if (dow === 5) d.setDate(d.getDate() - 1);
@@ -7129,7 +7131,7 @@
         ccPayments: Array.isArray(restored.ccPayments) ? restored.ccPayments : [],
         salaryCycleConfig: (restored.salaryCycleConfig && typeof restored.salaryCycleConfig === 'object')
           ? {
-              day: Math.min(28, Math.max(1, parseInt(restored.salaryCycleConfig.day, 10) || 25)),
+              day: Math.min(31, Math.max(1, parseInt(restored.salaryCycleConfig.day, 10) || 25)),
               weekendMode: restored.salaryCycleConfig.weekendMode || 'fri_sat'
             }
           : { day: 25, weekendMode: 'fri_sat' }
@@ -7688,7 +7690,7 @@
     if (cycleSettingsForm) {
       cycleSettingsForm.addEventListener('submit', (event) => {
         event.preventDefault();
-        const day = Math.min(28, Math.max(1, parseInt(cycleDayInput.value, 10) || 25));
+        const day = Math.min(31, Math.max(1, parseInt(cycleDayInput.value, 10) || 25));
         const weekendMode = cycleWeekendSelect.value || 'fri_sat';
         state.salaryCycleConfig = { day, weekendMode };
         selectedSummaryPeriod = '';
