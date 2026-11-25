@@ -46,7 +46,7 @@
   </style>
 </head>
 <body class="min-h-screen text-slate-900 antialiased">
-  <div class="max-w-md mx-auto min-h-screen px-4 pt-5 pb-28 flex flex-col gap-4">
+  <div class="max-w-md mx-auto min-h-screen px-4 pb-28 flex flex-col gap-4" style="padding-top: calc(env(safe-area-inset-top, 0px) + 1.25rem);">
     <!-- Header -->
     <header class="flex items-center justify-between px-1">
       <div>
@@ -62,7 +62,7 @@
           💾 Backup
         </button>
         <span class="text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">
-          v1.0
+          v1.1
         </span>
       </div>
     </header>
@@ -3354,30 +3354,93 @@
       showToast(`Added ${entry.grams}g ${entry.purity} Gold${fee > 0 ? ` (${fee}% sell fee)` : ''}`);
     }
 
-    async function fetchLiveStockQuote(yahooSymbol) {
-      if (!yahooSymbol) return null;
+    let psxMarketCache = { ts: 0, map: {} };
+
+    async function fetchPsxTerminalMap() {
+      if (Date.now() - psxMarketCache.ts < 60000 && Object.keys(psxMarketCache.map).length > 0) {
+        return psxMarketCache.map;
+      }
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 3500);
+      const timer = setTimeout(() => controller.abort(), 4500);
       try {
-        const res = await fetch(
-          `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1d&range=1d`,
-          { signal: controller.signal }
-        );
+        const res = await fetch('https://psxterminal.com/api/market-data?market=REG', { signal: controller.signal });
         clearTimeout(timer);
         if (!res.ok) return null;
-        const data = await res.json();
-        const meta = data && data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta;
-        if (!meta || !meta.regularMarketPrice) return null;
-        return {
-          price: Number(meta.regularMarketPrice),
-          currency: (meta.currency || 'USD').toUpperCase(),
-          name: meta.longName || meta.shortName || yahooSymbol,
-          exchange: meta.exchangeName || ''
-        };
+        const raw = await res.json();
+        const map = {};
+        const list = Array.isArray(raw) ? raw : (Array.isArray(raw && raw.data) ? raw.data : (Array.isArray(raw && raw.stocks) ? raw.stocks : null));
+        if (list) {
+          list.forEach((row) => {
+            const sym = String(row.symbol || row.ticker || row.scrip || '').toUpperCase().trim();
+            const px = Number(row.price ?? row.last ?? row.current ?? row.close ?? row.ltp ?? 0);
+            if (sym && px > 0) map[sym] = px;
+          });
+        } else if (raw && typeof raw === 'object') {
+          const obj = (raw.data && typeof raw.data === 'object' && !Array.isArray(raw.data)) ? raw.data : raw;
+          Object.keys(obj).forEach((k) => {
+            const v = obj[k];
+            const px = typeof v === 'number' ? v : Number(v && (v.price ?? v.last ?? v.current ?? v.close ?? v.ltp ?? 0));
+            if (px > 0) map[k.toUpperCase().trim()] = px;
+          });
+        }
+        if (Object.keys(map).length > 0) {
+          psxMarketCache = { ts: Date.now(), map };
+          return map;
+        }
       } catch (e) {
         clearTimeout(timer);
-        return null;
       }
+      return null;
+    }
+
+    async function fetchLiveStockQuote(yahooSymbol) {
+      if (!yahooSymbol) return null;
+      const upper = String(yahooSymbol).toUpperCase().trim();
+
+      // 1. For PSX stocks (*.KA), try CORS-enabled PSX Terminal real-time feed first
+      if (upper.endsWith('.KA')) {
+        const cleanSym = upper.replace(/\.KA$/, '');
+        const psxMap = await fetchPsxTerminalMap();
+        if (psxMap && psxMap[cleanSym] > 0) {
+          return {
+            price: Number(psxMap[cleanSym]),
+            currency: 'PKR',
+            name: cleanSym,
+            exchange: 'PSX'
+          };
+        }
+      }
+
+      // 2. Try Yahoo Finance via CORS-friendly endpoints (and direct fallback)
+      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(upper)}?interval=1d&range=1d`;
+      const endpoints = [
+        `https://corsproxy.io/?url=${encodeURIComponent(yahooUrl)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl)}`,
+        yahooUrl
+      ];
+
+      for (const ep of endpoints) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 4000);
+        try {
+          const res = await fetch(ep, { signal: controller.signal });
+          clearTimeout(timer);
+          if (!res.ok) continue;
+          const data = await res.json();
+          const meta = data && data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta;
+          if (meta && meta.regularMarketPrice > 0) {
+            return {
+              price: Number(meta.regularMarketPrice),
+              currency: (meta.currency || 'USD').toUpperCase(),
+              name: meta.longName || meta.shortName || upper,
+              exchange: meta.exchangeName || ''
+            };
+          }
+        } catch (e) {
+          clearTimeout(timer);
+        }
+      }
+      return null;
     }
 
     async function searchStocksAutocomplete(query) {
@@ -3526,7 +3589,7 @@
         render();
         showToast(`Updated live prices for ${updatedCount} stock(s)!`, false);
       } else {
-        showToast('Live stock feed blocked in preview — update prices inline below', false);
+        showToast('Live stock feed unavailable right now — update prices inline below', false);
       }
     }
 
