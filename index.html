@@ -4825,11 +4825,21 @@
 
       const earnedTotal = filteredIncomes.reduce((s, i) => s + i.amount, 0);
       const spentTotal = filteredExpenses.reduce((s, e) => s + e.amount, 0);
-      const savedTotal = filteredSavings.reduce((s, t) => s + t.amount, 0);
+      // Only count NEW savings from salary (exclude "Already Have" opening balances, which belong in Net Worth)
+      const savedTotal = filteredSavings
+        .filter((t) => t.deductFromSalary !== false)
+        .reduce((s, t) => s + t.amount, 0);
+      // Only count NEW investments funded this period (exclude "Already Owned" opening holdings)
       const investedTotal =
-        filteredBuys.reduce((s, b) => s + (b.totalQAR || 0), 0) +
-        filteredGold.reduce((s, g) => s + Number(g.totalPaid || g.costPaid || 0), 0) +
-        filteredOther.reduce((s, o) => s + Number(o.costQAR || 0), 0);
+        filteredBuys
+          .filter((b) => b.funding && b.funding !== 'Already Owned' && b.funding !== 'Brokerage Cash')
+          .reduce((s, b) => s + (b.totalQAR || 0), 0) +
+        filteredGold
+          .filter((g) => g.fundingSource === 'salary' || g.fundingSource === 'savings' || (!g.fundingSource && g.deductFromSalary))
+          .reduce((s, g) => s + Number(g.totalPaid || g.costPaid || 0), 0) +
+        filteredOther
+          .filter((o) => o.fundingSource === 'salary' || o.fundingSource === 'savings' || o.fundingSource === 'pakistan')
+          .reduce((s, o) => s + Number(o.costQAR || 0), 0);
 
       periodEarnedEl.textContent = formatQAR(earnedTotal, 0);
       periodSpentEl.textContent = formatQAR(spentTotal, 0);
@@ -5192,7 +5202,7 @@
       allYears.forEach((yr) => {
         const yInc = state.incomes.filter((i) => (i.dateISO || today).slice(0, 4) === yr).reduce((s, i) => s + i.amount, 0);
         const yExp = state.expenses.filter((e) => (e.dateISO || today).slice(0, 4) === yr).reduce((s, e) => s + e.amount, 0);
-        const ySav = state.savingsTransfers.filter((t) => (t.dateISO || today).slice(0, 4) === yr).reduce((s, t) => s + t.amount, 0);
+        const ySav = state.savingsTransfers.filter((t) => t.deductFromSalary !== false && (t.dateISO || today).slice(0, 4) === yr).reduce((s, t) => s + t.amount, 0);
         const row = document.createElement('div');
         row.className = 'rounded-xl bg-slate-50 border border-slate-100 p-2.5 flex items-center justify-between gap-2 text-xs';
         row.innerHTML = `
