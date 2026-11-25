@@ -86,9 +86,8 @@
         gap: 1.25rem;
         align-items: start;
       }
-      #tab-summary:not(.hidden) > section:nth-child(1),
-      #tab-summary:not(.hidden) > section:nth-child(2),
-      #tab-savings:not(.hidden) > section:nth-child(1) {
+      #tab-savings:not(.hidden) > section:nth-child(1),
+      #tab-summary:not(.hidden) > .dash-full {
         grid-column: 1 / -1;
       }
       .ios-card {
@@ -1602,41 +1601,49 @@
 
     </main>
 
-    <!-- ===================== TAB 4: SUMMARY (MONTHLY, YEARLY & ALL-TIME) ===================== -->
+    <!-- ===================== TAB 4: SUMMARY & REPORTS (EXECUTIVE DASHBOARD) ===================== -->
     <main id="tab-summary" class="hidden flex-col gap-4">
-      <!-- Period Switcher: Monthly | Yearly | All Time -->
-      <section aria-label="Summary Period Selector" class="ios-card p-3.5 flex flex-col gap-2.5">
-        <div class="grid grid-cols-3 bg-slate-100 p-1 rounded-xl gap-1">
-          <button type="button" data-summary-mode="month" class="summary-mode-btn py-1.5 rounded-lg text-xs font-semibold bg-white text-blue-600 shadow-xs transition">
-            Salary Cycle
-          </button>
-          <button type="button" data-summary-mode="year" class="summary-mode-btn py-1.5 rounded-lg text-xs font-semibold text-slate-500 transition">
-            Yearly
-          </button>
-          <button type="button" data-summary-mode="all" class="summary-mode-btn py-1.5 rounded-lg text-xs font-semibold text-slate-500 transition">
-            All Time
-          </button>
+      <!-- 1. Executive Dashboard Command Bar -->
+      <section aria-label="Dashboard Period Selector" class="dash-full ios-card p-4 lg:p-5 flex flex-col gap-3 border border-slate-200/70">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-blue-600">Executive Financial Report</p>
+            <h2 class="text-lg lg:text-xl font-bold text-slate-900 tracking-tight">Summary &amp; Analytics Dashboard</h2>
+          </div>
+
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div class="grid grid-cols-3 bg-slate-100 p-1 rounded-xl gap-1 shrink-0">
+              <button type="button" data-summary-mode="month" class="summary-mode-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-blue-600 shadow-xs transition">
+                Salary Cycle
+              </button>
+              <button type="button" data-summary-mode="year" class="summary-mode-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-500 transition">
+                Yearly
+              </button>
+              <button type="button" data-summary-mode="all" class="summary-mode-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-500 transition">
+                All Time
+              </button>
+            </div>
+
+            <div id="summary-period-wrap" class="flex items-center gap-1.5">
+              <select
+                id="summary-period-select"
+                aria-label="Select salary cycle or year"
+                class="flex-1 sm:w-52 px-3 py-2 rounded-xl bg-slate-100 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              ></select>
+              <button
+                id="cycle-settings-toggle-btn"
+                type="button"
+                class="px-3 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold shrink-0 transition active:scale-95"
+              >
+                ⚙️ Cycle
+              </button>
+            </div>
+          </div>
         </div>
 
-        <div id="summary-period-wrap" class="flex items-center justify-between gap-2">
-          <span class="text-xs font-medium text-slate-500 shrink-0">Pick period:</span>
-          <select
-            id="summary-period-select"
-            aria-label="Select salary cycle or year"
-            class="flex-1 min-w-0 px-3 py-1.5 rounded-xl bg-slate-100 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          ></select>
-          <button
-            id="cycle-settings-toggle-btn"
-            type="button"
-            class="px-2.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-[11px] font-semibold shrink-0 transition active:scale-95"
-          >
-            ⚙️ Cycle
-          </button>
-        </div>
-
-        <form id="cycle-settings-form" class="hidden pt-2.5 border-t border-slate-100 flex flex-col gap-2" novalidate>
-          <p class="text-[11px] font-semibold text-slate-700">Customize Salary-to-Salary Cycle</p>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <form id="cycle-settings-form" class="hidden pt-3 border-t border-slate-100 flex flex-col gap-2.5" novalidate>
+          <p class="text-xs font-semibold text-slate-700">Customize Salary-to-Salary Cycle</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div>
               <label for="cycle-day-input" class="block text-[10px] font-semibold text-slate-500 mb-1">Salary Day of Month (1–31)</label>
               <input
@@ -1646,14 +1653,14 @@
                 min="1"
                 max="31"
                 value="25"
-                class="w-full px-3 py-1.5 rounded-xl bg-slate-100 text-xs font-semibold text-slate-900 tabular-nums focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 rounded-xl bg-slate-100 text-xs font-semibold text-slate-900 tabular-nums focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
             </div>
             <div>
               <label for="cycle-weekend-select" class="block text-[10px] font-semibold text-slate-500 mb-1">If Payday Hits Weekend</label>
               <select
                 id="cycle-weekend-select"
-                class="w-full px-2.5 py-1.5 rounded-xl bg-slate-100 text-xs font-semibold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full px-2.5 py-2 rounded-xl bg-slate-100 text-xs font-semibold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="fri_sat">Shift earlier: Fri/Sat → Thu (Qatar)</option>
                 <option value="sat_sun">Shift earlier: Sat/Sun → Fri</option>
@@ -1663,180 +1670,245 @@
           </div>
           <div class="flex items-center justify-end gap-2">
             <button id="cycle-settings-cancel-btn" type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:bg-slate-100 transition">Cancel</button>
-            <button type="submit" class="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition active:scale-95">Save Cycle</button>
+            <button type="submit" class="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition active:scale-95">Save Cycle</button>
           </div>
         </form>
       </section>
 
-      <!-- Simple Plain-English Money Story Card -->
-      <section aria-label="Your Money Story" class="ios-card p-4 bg-gradient-to-br from-slate-900 to-slate-800 text-white">
-        <div class="flex items-center justify-between mb-1.5">
-          <span class="text-[11px] font-bold uppercase tracking-wider text-sky-300">✨ Your Money Story</span>
-          <span id="story-period-badge" class="text-[10px] font-semibold bg-white/10 px-2 py-0.5 rounded-full text-slate-200"></span>
+      <!-- 2. Executive 4-Card KPI Strip -->
+      <section aria-label="Key Financial Metrics" class="dash-full grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div class="ios-card p-4 border-t-4 border-emerald-500">
+          <div class="flex items-center justify-between">
+            <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Total Income</p>
+            <span class="text-sm" aria-hidden="true">💰</span>
+          </div>
+          <p id="period-earned" class="text-lg lg:text-2xl font-bold text-slate-900 tabular-nums mt-1.5">QAR 0</p>
+          <p id="kpi-earned-sub" class="text-[11px] font-medium text-emerald-600 mt-1">Inflows this period</p>
         </div>
-        <p id="money-story-text" class="text-xs leading-relaxed text-slate-100 font-medium">
-          Add your salary, expenses, or savings to see your simple money story here.
-        </p>
 
-        <!-- Visual 1-Bar Money Split -->
-        <div class="mt-3">
-          <div class="w-full h-3 bg-white/15 rounded-full overflow-hidden flex">
-            <div id="bar-spent" class="h-full bg-rose-400 transition-all" style="width: 0%"></div>
-            <div id="bar-saved" class="h-full bg-emerald-400 transition-all" style="width: 0%"></div>
-            <div id="bar-invested" class="h-full bg-sky-400 transition-all" style="width: 0%"></div>
+        <div class="ios-card p-4 border-t-4 border-rose-500">
+          <div class="flex items-center justify-between">
+            <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Total Spending</p>
+            <span class="text-sm" aria-hidden="true">💸</span>
           </div>
-          <div class="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[10px] text-slate-300">
-            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-400"></span>Spent</span>
-            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-400"></span>Saved</span>
-            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-sky-400"></span>Invested</span>
-            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-white/30"></span>Left Over</span>
+          <p id="period-spent" class="text-lg lg:text-2xl font-bold text-slate-900 tabular-nums mt-1.5">QAR 0</p>
+          <p id="kpi-spent-pct" class="text-[11px] font-semibold text-rose-600 mt-1 tabular-nums">0% of income</p>
+        </div>
+
+        <div class="ios-card p-4 border-t-4 border-blue-500">
+          <div class="flex items-center justify-between">
+            <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Cash Saved</p>
+            <span class="text-sm" aria-hidden="true">🏦</span>
           </div>
+          <p id="period-saved" class="text-lg lg:text-2xl font-bold text-slate-900 tabular-nums mt-1.5">QAR 0</p>
+          <p id="kpi-saved-pct" class="text-[11px] font-semibold text-blue-600 mt-1 tabular-nums">0% savings rate</p>
+        </div>
+
+        <div class="ios-card p-4 border-t-4 border-indigo-500">
+          <div class="flex items-center justify-between">
+            <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Total Invested</p>
+            <span class="text-sm" aria-hidden="true">📈</span>
+          </div>
+          <p id="period-invested" class="text-lg lg:text-2xl font-bold text-slate-900 tabular-nums mt-1.5">QAR 0</p>
+          <p id="kpi-invested-pct" class="text-[11px] font-semibold text-indigo-600 mt-1 tabular-nums">0% of income</p>
         </div>
       </section>
 
-      <!-- 4 Simple Period Tiles -->
-      <section aria-label="Period Totals" class="grid grid-cols-2 gap-2.5">
-        <div class="ios-card p-3.5">
-          <p class="text-[10px] font-semibold uppercase text-slate-400">💰 Money In</p>
-          <p id="period-earned" class="text-base font-bold text-emerald-600 tabular-nums mt-0.5">QAR 0</p>
-        </div>
-        <div class="ios-card p-3.5">
-          <p class="text-[10px] font-semibold uppercase text-slate-400">💸 Money Out</p>
-          <p id="period-spent" class="text-base font-bold text-rose-600 tabular-nums mt-0.5">QAR 0</p>
-        </div>
-        <div class="ios-card p-3.5">
-          <p class="text-[10px] font-semibold uppercase text-slate-400">🏦 Cash Saved</p>
-          <p id="period-saved" class="text-base font-bold text-blue-600 tabular-nums mt-0.5">QAR 0</p>
-        </div>
-        <div class="ios-card p-3.5">
-          <p class="text-[10px] font-semibold uppercase text-slate-400">📈 Invested</p>
-          <p id="period-invested" class="text-base font-bold text-sky-600 tabular-nums mt-0.5">QAR 0</p>
-        </div>
-      </section>
-
-      <!-- Complete Wealth Snapshot: Where All Your Money Is Right Now -->
-      <section aria-label="Total Net Worth Snapshot" class="ios-card p-4">
-        <div class="flex items-center justify-between mb-3">
+      <!-- 3A. Cash Flow Allocation Donut Chart & Executive Summary -->
+      <section aria-label="Cash Flow Allocation" class="ios-card p-5 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 text-white flex flex-col justify-between gap-4">
+        <div class="flex items-center justify-between gap-2">
           <div>
-            <p class="text-[11px] font-semibold text-slate-400 uppercase">Where Your Money Is Now</p>
-            <p id="net-worth-total" class="text-xl font-bold text-slate-900 tabular-nums">QAR 0.00</p>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-sky-400">Cash Flow Allocation</p>
+            <h3 class="text-sm font-bold text-white mt-0.5">Income Distribution</h3>
           </div>
-          <span class="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
-            Net Worth
+          <span id="story-period-badge" class="text-[10px] font-semibold bg-white/10 border border-white/10 px-2.5 py-1 rounded-full text-slate-200"></span>
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-center gap-5">
+          <!-- Live SVG Donut Chart -->
+          <div class="relative w-32 h-32 shrink-0">
+            <svg viewBox="0 0 120 120" class="w-full h-full -rotate-90" aria-label="Income allocation donut chart">
+              <circle cx="60" cy="60" r="46" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="14"></circle>
+              <circle id="donut-spent" cx="60" cy="60" r="46" fill="none" stroke="#FB7185" stroke-width="14" stroke-dasharray="0 289.03" stroke-dashoffset="0"></circle>
+              <circle id="donut-saved" cx="60" cy="60" r="46" fill="none" stroke="#34D399" stroke-width="14" stroke-dasharray="0 289.03" stroke-dashoffset="0"></circle>
+              <circle id="donut-invested" cx="60" cy="60" r="46" fill="none" stroke="#38BDF8" stroke-width="14" stroke-dasharray="0 289.03" stroke-dashoffset="0"></circle>
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+              <span id="donut-center-pct" class="text-lg font-extrabold text-white tabular-nums leading-none">0%</span>
+              <span class="text-[9px] uppercase tracking-wider text-slate-400 mt-1">Wealth Rate</span>
+            </div>
+          </div>
+
+          <div class="flex-1 min-w-0 w-full space-y-2.5">
+            <p id="money-story-text" class="text-xs leading-relaxed text-slate-200 font-medium">
+              Add your salary, expenses, or savings to see your financial breakdown here.
+            </p>
+            <div class="w-full h-2.5 bg-white/10 rounded-full overflow-hidden flex">
+              <div id="bar-spent" class="h-full bg-rose-400 transition-all" style="width: 0%"></div>
+              <div id="bar-saved" class="h-full bg-emerald-400 transition-all" style="width: 0%"></div>
+              <div id="bar-invested" class="h-full bg-sky-400 transition-all" style="width: 0%"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-slate-300 tabular-nums">
+              <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-400"></span>Spent <strong id="legend-spent-pct" class="text-white ml-auto">0%</strong></span>
+              <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span>Saved <strong id="legend-saved-pct" class="text-white ml-auto">0%</strong></span>
+              <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sky-400"></span>Invested <strong id="legend-invested-pct" class="text-white ml-auto">0%</strong></span>
+              <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-white/30"></span>Unallocated <strong id="legend-left-pct" class="text-white ml-auto">0%</strong></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3B. Executive Net Worth & Portfolio Allocation -->
+      <section aria-label="Total Net Worth Snapshot" class="ios-card p-5 flex flex-col justify-between gap-3">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-emerald-600">Balance Sheet</p>
+            <p id="net-worth-total" class="text-2xl lg:text-3xl font-extrabold text-slate-900 tabular-nums mt-0.5">QAR 0.00</p>
+          </div>
+          <span class="text-[10px] font-bold uppercase tracking-wide text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+            Live Net Worth
           </span>
         </div>
 
-        <div class="grid grid-cols-2 gap-2 text-xs">
-          <div class="rounded-xl bg-blue-50/70 border border-blue-100 p-2.5">
-            <p class="text-[10px] font-semibold text-blue-700">💵 Qatar Salary Left</p>
-            <p id="nw-salary" class="font-bold text-slate-900 tabular-nums mt-0.5">QAR 0</p>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+          <div class="rounded-xl bg-slate-50 border border-slate-200/70 p-2.5">
+            <p class="text-[10px] font-semibold text-blue-700">💵 Salary Left</p>
+            <p id="nw-salary" class="text-sm font-bold text-slate-900 tabular-nums mt-0.5">QAR 0</p>
           </div>
-          <div class="rounded-xl bg-emerald-50/70 border border-emerald-100 p-2.5">
+          <div class="rounded-xl bg-slate-50 border border-slate-200/70 p-2.5">
             <p class="text-[10px] font-semibold text-emerald-700">🏦 Cash Savings</p>
-            <p id="nw-savings" class="font-bold text-slate-900 tabular-nums mt-0.5">QAR 0</p>
+            <p id="nw-savings" class="text-sm font-bold text-slate-900 tabular-nums mt-0.5">QAR 0</p>
           </div>
-          <div class="rounded-xl bg-teal-50/70 border border-teal-100 p-2.5">
-            <p class="text-[10px] font-semibold text-teal-700">🇵🇰 Pakistan Account</p>
-            <p id="nw-pk" class="font-bold text-slate-900 tabular-nums mt-0.5">QAR 0</p>
+          <div class="rounded-xl bg-slate-50 border border-slate-200/70 p-2.5">
+            <p class="text-[10px] font-semibold text-teal-700">🇵🇰 PK Account</p>
+            <p id="nw-pk" class="text-sm font-bold text-slate-900 tabular-nums mt-0.5">QAR 0</p>
             <p id="nw-pk-pkr" class="text-[10px] text-teal-700 tabular-nums">PKR 0</p>
           </div>
-          <div class="rounded-xl bg-sky-50/70 border border-sky-100 p-2.5">
+          <div class="rounded-xl bg-slate-50 border border-slate-200/70 p-2.5">
             <p class="text-[10px] font-semibold text-sky-700">📈 Stocks</p>
-            <p id="nw-stocks" class="font-bold text-slate-900 tabular-nums mt-0.5">QAR 0</p>
+            <p id="nw-stocks" class="text-sm font-bold text-slate-900 tabular-nums mt-0.5">QAR 0</p>
             <p id="nw-stocks-pl" class="text-[10px] text-slate-500 tabular-nums">P&amp;L: QAR 0</p>
           </div>
-          <div class="rounded-xl bg-amber-50/70 border border-amber-100 p-2.5">
-            <p class="text-[10px] font-semibold text-amber-700">🪙 Gold (Net Value)</p>
-            <p id="nw-gold" class="font-bold text-slate-900 tabular-nums mt-0.5">QAR 0</p>
+          <div class="rounded-xl bg-slate-50 border border-slate-200/70 p-2.5">
+            <p class="text-[10px] font-semibold text-amber-700">🪙 Gold (Net)</p>
+            <p id="nw-gold" class="text-sm font-bold text-slate-900 tabular-nums mt-0.5">QAR 0</p>
             <p id="nw-gold-g" class="text-[10px] text-amber-700 tabular-nums">0.00 g</p>
           </div>
-          <div class="rounded-xl bg-indigo-50/70 border border-indigo-100 p-2.5">
-            <p class="text-[10px] font-semibold text-indigo-700">🌐 Other Invest</p>
-            <p id="nw-other" class="font-bold text-slate-900 tabular-nums mt-0.5">QAR 0</p>
+          <div class="rounded-xl bg-slate-50 border border-slate-200/70 p-2.5">
+            <p class="text-[10px] font-semibold text-indigo-700">🌐 Other / CC</p>
+            <p id="nw-other" class="text-sm font-bold text-slate-900 tabular-nums mt-0.5">QAR 0</p>
             <p id="nw-cc-due" class="text-[10px] text-purple-700 font-semibold tabular-nums">CC Due: QAR 0</p>
           </div>
         </div>
       </section>
 
-      <!-- How You Paid (Qatar vs Credit Card vs Pakistan) -->
-      <section aria-label="How You Paid" class="ios-card p-4">
-        <div class="flex items-center justify-between mb-2.5">
-          <h2 class="text-sm font-semibold text-slate-800">How You Paid</h2>
-          <span class="text-[11px] text-slate-400">By account</span>
-        </div>
-        <div id="summary-pay-breakdown" class="space-y-2.5"></div>
-      </section>
-
-      <!-- Where Money Came From (Income by Source) -->
-      <section aria-label="Income by Source" class="ios-card p-4">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-sm font-semibold text-slate-800">Where Money Came From</h2>
-          <span id="summary-income-label" class="text-[11px] text-slate-400"></span>
-        </div>
-        <div id="summary-income-breakdown" class="space-y-3"></div>
-      </section>
-
-      <!-- Where Money Went (Spending by Category & Item) -->
-      <section aria-label="Spending by Category and Item" class="ios-card p-4">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-sm font-semibold text-slate-800">Where Money Went</h2>
-          <span id="summary-spend-label" class="text-[11px] text-slate-400"></span>
+      <!-- 4A. Category Spending Breakdown -->
+      <section aria-label="Spending by Category and Item" class="ios-card p-5">
+        <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Expense Analysis</p>
+            <h3 class="text-sm font-bold text-slate-900">Spending by Category</h3>
+          </div>
+          <span id="summary-spend-label" class="text-[11px] font-semibold text-slate-400"></span>
         </div>
         <div id="summary-spend-breakdown" class="space-y-3.5"></div>
       </section>
 
-      <!-- Multi-Year Comparison (Shows Every Year Side by Side) -->
-      <section aria-label="Year by Year History" class="ios-card p-4">
-        <div class="flex items-center justify-between mb-2.5">
-          <h2 class="text-sm font-semibold text-slate-800">Year-by-Year History</h2>
-          <span class="text-[11px] text-slate-400">Multi-year view</span>
+      <!-- 4B. Quick Pick Items (% of Income) -->
+      <section aria-label="Quick Pick Items Percentage of Income" class="ios-card p-5">
+        <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 gap-2">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-indigo-600">Recurring Habit Share</p>
+            <h3 class="text-sm font-bold text-slate-900">⚡ Quick Pick Items (% of Income)</h3>
+            <p id="summary-qp-total" class="text-[11px] text-slate-500 font-medium mt-0.5 tabular-nums"></p>
+          </div>
+          <span id="summary-qp-label" class="text-[11px] font-semibold text-slate-400 shrink-0"></span>
+        </div>
+        <div id="summary-quickpick-breakdown" class="space-y-2.5"></div>
+      </section>
+
+      <!-- 5A. Payment Channels & Credit Card Settlements -->
+      <section aria-label="Payment Channels" class="ios-card p-5 flex flex-col gap-4">
+        <div>
+          <div class="flex items-center justify-between mb-2.5 pb-2 border-b border-slate-100">
+            <div>
+              <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Payment Mix</p>
+              <h3 class="text-sm font-bold text-slate-900">How You Paid</h3>
+            </div>
+            <span class="text-[11px] text-slate-400">By account</span>
+          </div>
+          <div id="summary-pay-breakdown" class="space-y-2.5"></div>
+        </div>
+
+        <div class="pt-3 border-t border-slate-100">
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-xs font-bold text-slate-700">Credit Card Bills Paid</h4>
+            <span class="text-[10px] text-slate-400">Transfers (no double-count)</span>
+          </div>
+          <div id="summary-cc-payments" class="space-y-2"></div>
+        </div>
+      </section>
+
+      <!-- 5B. Income Streams -->
+      <section aria-label="Income by Source" class="ios-card p-5">
+        <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-emerald-600">Inflows</p>
+            <h3 class="text-sm font-bold text-slate-900">Income Sources</h3>
+          </div>
+          <span id="summary-income-label" class="text-[11px] font-semibold text-slate-400"></span>
+        </div>
+        <div id="summary-income-breakdown" class="space-y-3"></div>
+      </section>
+
+      <!-- 6. Multi-Year Performance Statement (Full Width) -->
+      <section aria-label="Year by Year History" class="dash-full ios-card p-5">
+        <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-blue-600">Long-Term Track Record</p>
+            <h3 class="text-sm font-bold text-slate-900">Year-by-Year Financial Performance</h3>
+          </div>
+          <span class="text-[11px] font-semibold text-slate-400">Multi-year view</span>
         </div>
         <div id="summary-yearly-table" class="space-y-2"></div>
       </section>
 
-      <!-- Credit Card Bill Payment History -->
-      <section aria-label="Credit Card Bill Payments" class="ios-card p-4">
-        <div class="flex items-center justify-between mb-2">
-          <h2 class="text-sm font-semibold text-slate-800">Credit Card Bills Paid</h2>
-          <span class="text-[10px] text-slate-400">Transfers (no double-count)</span>
+      <!-- 7. Reports & Data Export Toolbar (Full Width) -->
+      <section aria-label="Export and Backup" class="dash-full ios-card p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <div>
+          <div class="flex items-center gap-2">
+            <h3 class="text-sm font-bold text-slate-900">Financial Reports &amp; Data Export</h3>
+            <span id="summary-autobackup-badge" class="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+              Auto-Backup ON
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 mt-0.5">
+            Download a multi-sheet styled Excel workbook with live formulas, copy for Google Sheets, or manage Cloud Sync.
+          </p>
         </div>
-        <div id="summary-cc-payments" class="space-y-2"></div>
-      </section>
-
-      <!-- Export & Auto-Backup Card -->
-      <section aria-label="Export and Backup" class="ios-card p-4">
-        <div class="flex items-center justify-between mb-2">
-          <h2 class="text-sm font-semibold text-slate-800">Export &amp; Auto-Backup</h2>
-          <span id="summary-autobackup-badge" class="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-            Auto-Backup ON
-          </span>
-        </div>
-        <p class="text-xs text-slate-500 mb-3">
-          Export your full QAR records to Excel or Google Sheets, or manage automatic snapshots.
-        </p>
-        <div class="grid grid-cols-2 gap-2 mb-2">
+        <div class="flex flex-wrap items-center gap-2 shrink-0">
           <button
             id="summary-export-excel-btn"
             type="button"
-            class="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-semibold transition"
+            class="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-semibold transition"
           >
             📊 Export Excel (.xlsx)
           </button>
           <button
             id="summary-copy-sheets-btn"
             type="button"
-            class="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-semibold transition"
+            class="py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-semibold transition"
           >
             📗 Copy for Sheets
           </button>
+          <button
+            id="summary-open-backup-btn"
+            type="button"
+            class="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
+          >
+            ☁️ Cloud Sync &amp; Backups
+          </button>
         </div>
-        <button
-          id="summary-open-backup-btn"
-          type="button"
-          class="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
-        >
-          Manage Auto-Backups &amp; Restore
-        </button>
       </section>
     </main>
   </div>
@@ -2867,6 +2939,9 @@
     const summarySpendLabelEl = document.getElementById('summary-spend-label');
     const summaryIncomeBreakdownEl = document.getElementById('summary-income-breakdown');
     const summarySpendBreakdownEl = document.getElementById('summary-spend-breakdown');
+    const summaryQuickpickBreakdownEl = document.getElementById('summary-quickpick-breakdown');
+    const summaryQpTotalEl = document.getElementById('summary-qp-total');
+    const summaryQpLabelEl = document.getElementById('summary-qp-label');
     const summaryCcPaymentsEl = document.getElementById('summary-cc-payments');
 
     const toastEl = document.getElementById('toast');
@@ -4761,6 +4836,15 @@
       periodSavedEl.textContent = formatQAR(savedTotal, 0);
       periodInvestedEl.textContent = formatQAR(investedTotal, 0);
 
+      const kpiEarnedSubEl = document.getElementById('kpi-earned-sub');
+      const kpiSpentPctEl = document.getElementById('kpi-spent-pct');
+      const kpiSavedPctEl = document.getElementById('kpi-saved-pct');
+      const kpiInvestedPctEl = document.getElementById('kpi-invested-pct');
+      if (kpiEarnedSubEl) kpiEarnedSubEl.textContent = `${filteredIncomes.length} income ${filteredIncomes.length === 1 ? 'entry' : 'entries'}`;
+      if (kpiSpentPctEl) kpiSpentPctEl.textContent = earnedTotal > 0 ? `${((spentTotal / earnedTotal) * 100).toFixed(1)}% of income` : `${filteredExpenses.length} expenses`;
+      if (kpiSavedPctEl) kpiSavedPctEl.textContent = earnedTotal > 0 ? `${((savedTotal / earnedTotal) * 100).toFixed(1)}% savings rate` : `${filteredSavings.length} transfers`;
+      if (kpiInvestedPctEl) kpiInvestedPctEl.textContent = earnedTotal > 0 ? `${((investedTotal / earnedTotal) * 100).toFixed(1)}% of income` : 'Stocks, Gold & Other';
+
       // Plain-English Kid-Friendly Money Story + Visual Stacked Bar
       storyPeriodBadgeEl.textContent = periodNice;
       if (earnedTotal === 0 && spentTotal === 0 && savedTotal === 0 && investedTotal === 0) {
@@ -4768,6 +4852,16 @@
         barSpentEl.style.width = '0%';
         barSavedEl.style.width = '0%';
         barInvestedEl.style.width = '0%';
+        ['donut-spent', 'donut-saved', 'donut-invested'].forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) el.setAttribute('stroke-dasharray', '0 289.03');
+        });
+        const dcp = document.getElementById('donut-center-pct');
+        if (dcp) dcp.textContent = '0%';
+        ['legend-spent-pct', 'legend-saved-pct', 'legend-invested-pct', 'legend-left-pct'].forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = '0%';
+        });
       } else {
         const base = Math.max(earnedTotal, spentTotal + savedTotal + investedTotal, 1);
         const spentPct = Math.min(100, Math.round((spentTotal / base) * 100));
@@ -4776,6 +4870,40 @@
         barSpentEl.style.width = `${spentPct}%`;
         barSavedEl.style.width = `${savedPct}%`;
         barInvestedEl.style.width = `${invPct}%`;
+
+        // Update SVG Donut Chart & Legend
+        const circ = 289.03;
+        const dSpent = (spentPct / 100) * circ;
+        const dSaved = (savedPct / 100) * circ;
+        const dInv = (invPct / 100) * circ;
+        const leftPct = Math.max(0, 100 - spentPct - savedPct - invPct);
+        const wealthRate = earnedTotal > 0 ? Math.min(100, Math.round(((savedTotal + investedTotal) / earnedTotal) * 100)) : 0;
+
+        const donutSpentEl = document.getElementById('donut-spent');
+        const donutSavedEl = document.getElementById('donut-saved');
+        const donutInvestedEl = document.getElementById('donut-invested');
+        const donutCenterPctEl = document.getElementById('donut-center-pct');
+        if (donutSpentEl) {
+          donutSpentEl.setAttribute('stroke-dasharray', `${dSpent.toFixed(2)} ${circ}`);
+          donutSpentEl.setAttribute('stroke-dashoffset', '0');
+        }
+        if (donutSavedEl) {
+          donutSavedEl.setAttribute('stroke-dasharray', `${dSaved.toFixed(2)} ${circ}`);
+          donutSavedEl.setAttribute('stroke-dashoffset', `-${dSpent.toFixed(2)}`);
+        }
+        if (donutInvestedEl) {
+          donutInvestedEl.setAttribute('stroke-dasharray', `${dInv.toFixed(2)} ${circ}`);
+          donutInvestedEl.setAttribute('stroke-dashoffset', `-${(dSpent + dSaved).toFixed(2)}`);
+        }
+        if (donutCenterPctEl) donutCenterPctEl.textContent = `${wealthRate}%`;
+        const ls = document.getElementById('legend-spent-pct');
+        const lsv = document.getElementById('legend-saved-pct');
+        const li = document.getElementById('legend-invested-pct');
+        const ll = document.getElementById('legend-left-pct');
+        if (ls) ls.textContent = `${spentPct}%`;
+        if (lsv) lsv.textContent = `${savedPct}%`;
+        if (li) li.textContent = `${invPct}%`;
+        if (ll) ll.textContent = `${leftPct}%`;
 
         const keptPct = earnedTotal > 0 ? Math.max(0, Math.round(((earnedTotal - spentTotal) / earnedTotal) * 100)) : 0;
         const mood = earnedTotal > 0
@@ -4961,7 +5089,8 @@
               .forEach(([itemName, itemTotal]) => {
                 const tag = document.createElement('span');
                 tag.className = 'text-[11px] bg-slate-50 border border-slate-200 text-slate-600 px-2 py-0.5 rounded-lg tabular-nums';
-                tag.textContent = `${itemName}: ${formatQAR(itemTotal, 0)}`;
+                const incPctTxt = earnedTotal > 0 ? ` (${((itemTotal / earnedTotal) * 100).toFixed(1)}% inc)` : '';
+                tag.textContent = `${itemName}: ${formatQAR(itemTotal, 0)}${incPctTxt}`;
                 itemList.appendChild(tag);
               });
 
@@ -4970,6 +5099,91 @@
             wrap.appendChild(itemList);
             summarySpendBreakdownEl.appendChild(wrap);
           });
+      }
+
+      // Quick Pick Items (% of Income) — works for Salary Cycle, Yearly & All Time
+      if (summaryQuickpickBreakdownEl) {
+        if (summaryQpLabelEl) summaryQpLabelEl.textContent = periodNice;
+        const quickPickLookup = new Map();
+        getCategories().forEach((c) => {
+          (c.subItems || []).forEach((qp) => {
+            const k = qp.trim().toLowerCase();
+            if (k && !quickPickLookup.has(k)) {
+              quickPickLookup.set(k, { label: qp.trim(), icon: c.icon || '⚡', cat: c.label });
+            }
+          });
+        });
+
+        const qpTotals = {};
+        let qpGrandTotal = 0;
+        filteredExpenses.forEach((exp) => {
+          const cleanLbl = (exp.label || '').trim();
+          const key = cleanLbl.toLowerCase();
+          if (quickPickLookup.has(key)) {
+            const info = quickPickLookup.get(key);
+            if (!qpTotals[key]) {
+              qpTotals[key] = { label: info.label, icon: info.icon, cat: info.cat, total: 0, count: 0 };
+            }
+            qpTotals[key].total += exp.amount;
+            qpTotals[key].count += 1;
+            qpGrandTotal += exp.amount;
+          }
+        });
+
+        const qpRows = Object.values(qpTotals).sort((a, b) => b.total - a.total);
+        summaryQuickpickBreakdownEl.innerHTML = '';
+
+        if (qpRows.length === 0) {
+          if (summaryQpTotalEl) {
+            summaryQpTotalEl.textContent = quickPickLookup.size === 0
+              ? 'Add quick picks in Spend tab to track them here.'
+              : `No quick pick items spent in ${periodNice}.`;
+          }
+          const empty = document.createElement('p');
+          empty.className = 'text-xs text-slate-400 text-center py-2';
+          empty.textContent = 'Log expenses using your Quick Picks to see what % of your income goes to each item.';
+          summaryQuickpickBreakdownEl.appendChild(empty);
+        } else {
+          const totalIncPct = earnedTotal > 0 ? ((qpGrandTotal / earnedTotal) * 100).toFixed(1) : null;
+          if (summaryQpTotalEl) {
+            summaryQpTotalEl.textContent = totalIncPct !== null
+              ? `Total: ${formatQAR(qpGrandTotal)} • ${totalIncPct}% of income`
+              : `Total: ${formatQAR(qpGrandTotal)} (add income to see % of income)`;
+          }
+
+          qpRows.forEach((row) => {
+            const incPct = earnedTotal > 0 ? (row.total / earnedTotal) * 100 : null;
+            const barPct = incPct !== null ? Math.min(100, incPct) : (qpGrandTotal > 0 ? (row.total / qpGrandTotal) * 100 : 0);
+
+            const itemEl = document.createElement('div');
+            const top = document.createElement('div');
+            top.className = 'flex items-center justify-between text-xs mb-1 gap-2';
+
+            const left = document.createElement('span');
+            left.className = 'font-semibold text-slate-800 truncate';
+            left.textContent = `${row.icon} ${row.label} (${row.count})`;
+
+            const right = document.createElement('span');
+            right.className = 'font-bold text-slate-900 tabular-nums shrink-0';
+            right.textContent = incPct !== null
+              ? `${formatQAR(row.total, 0)} (${incPct.toFixed(1)}% of inc)`
+              : formatQAR(row.total, 0);
+
+            top.appendChild(left);
+            top.appendChild(right);
+
+            const barBg = document.createElement('div');
+            barBg.className = 'w-full h-2 bg-slate-100 rounded-full overflow-hidden';
+            const barFill = document.createElement('div');
+            barFill.className = 'h-full bg-indigo-500 rounded-full';
+            barFill.style.width = `${barPct.toFixed(1)}%`;
+            barBg.appendChild(barFill);
+
+            itemEl.appendChild(top);
+            itemEl.appendChild(barBg);
+            summaryQuickpickBreakdownEl.appendChild(itemEl);
+          });
+        }
       }
 
       // Multi-Year Comparison Table (Tracks Every Year Cleanly)
