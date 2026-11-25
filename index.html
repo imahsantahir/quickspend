@@ -141,7 +141,7 @@
         type="button"
         class="w-full py-2 px-3 rounded-xl text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100 transition flex items-center justify-center gap-1.5"
       >
-        🔄 Refresh App (v1.7)
+        🔄 Refresh App (v1.8)
       </button>
     </div>
   </aside>
@@ -168,7 +168,7 @@
           aria-label="Refresh app to load latest update"
           class="text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100 px-2.5 py-1 rounded-full transition active:scale-95"
         >
-          🔄 v1.7
+          🔄 v1.8
         </button>
       </div>
     </header>
@@ -396,10 +396,29 @@
           </div>
           <select
             id="expense-month-filter"
-            aria-label="Filter recent expenses by month"
-            class="px-2 py-1 rounded-lg bg-white border border-slate-200 text-[11px] font-semibold text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            aria-label="Filter recent expenses by salary cycle"
+            class="px-2 py-1 rounded-lg bg-white border border-slate-200 text-[11px] font-semibold text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[205px]"
           >
-            <option value="ALL">All Months</option>
+            <option value="ALL">All Salary Cycles</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-1.5 mb-2 px-0.5">
+          <input
+            id="expense-search-input"
+            type="search"
+            placeholder="🔍 Search item, category, amount, date..."
+            aria-label="Search recent expenses"
+            class="flex-1 min-w-0 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+          <select
+            id="expense-pay-filter"
+            aria-label="Filter expenses by payment method"
+            class="px-2 py-1.5 rounded-xl bg-white border border-slate-200 text-[11px] font-semibold text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
+          >
+            <option value="ALL">All Accounts</option>
+            <option value="debit">💵 Salary</option>
+            <option value="credit">💳 CC</option>
+            <option value="pakistan">🇵🇰 PK</option>
           </select>
         </div>
         <div class="ios-card overflow-hidden">
@@ -2511,7 +2530,9 @@
       salaryCycleConfig: { day: 25, weekendMode: 'fri_sat' }
     };
     let expensePageSize = 8;
-    let expenseMonthFilter = 'ALL';
+    let expenseMonthFilter = 'CURRENT';
+    let expenseSearchQuery = '';
+    let expensePayFilter = 'ALL';
     let tradeLogPageSize = 5;
     let activeInvestSubtab = 'stocks';
     const listLimits = {
@@ -2711,6 +2732,8 @@
     const summaryPkBalEl = document.getElementById('summary-pk-bal');
     const summaryPkBalPkrEl = document.getElementById('summary-pk-bal-pkr');
     const expenseMonthFilterEl = document.getElementById('expense-month-filter');
+    const expenseSearchInput = document.getElementById('expense-search-input');
+    const expensePayFilterEl = document.getElementById('expense-pay-filter');
     const expensePagerEl = document.getElementById('expense-pager');
     const expenseLoadMoreBtn = document.getElementById('expense-load-more-btn');
     const expenseCollapseBtn = document.getElementById('expense-collapse-btn');
@@ -5666,22 +5689,43 @@
       rate18kEl.textContent = goldRates['18K'].toFixed(2);
       goldRateStatusEl.textContent = goldRates.source;
 
-      // Expense List (Salary Cycle Filter + Pagination for multi-year use)
+      // Expense List (Salary Cycle Filter defaulting to Current + Search & Payment Filter)
+      const currentExpCycleId = getSalaryCycleForDate(getTodayISO()).id;
       const expCycles = getAvailablePeriods('month');
-      const prevMonthVal = expenseMonthFilter;
-      expenseMonthFilterEl.innerHTML = '<option value="ALL">All Salary Cycles</option>';
+      const prevMonthVal = expenseMonthFilter === 'CURRENT' ? currentExpCycleId : expenseMonthFilter;
+      expenseMonthFilterEl.innerHTML = '';
       expCycles.forEach((cid) => {
         const opt = document.createElement('option');
         opt.value = cid;
-        opt.textContent = getSalaryCycleById(cid).label;
+        const lbl = getSalaryCycleById(cid).label;
+        opt.textContent = cid === currentExpCycleId ? `${lbl} (Current)` : lbl;
         expenseMonthFilterEl.appendChild(opt);
       });
-      expenseMonthFilterEl.value = expCycles.includes(prevMonthVal) ? prevMonthVal : 'ALL';
+      const allOpt = document.createElement('option');
+      allOpt.value = 'ALL';
+      allOpt.textContent = 'All Salary Cycles';
+      expenseMonthFilterEl.appendChild(allOpt);
+
+      if (prevMonthVal === 'ALL') {
+        expenseMonthFilterEl.value = 'ALL';
+      } else if (expCycles.includes(prevMonthVal)) {
+        expenseMonthFilterEl.value = prevMonthVal;
+      } else {
+        expenseMonthFilterEl.value = currentExpCycleId;
+      }
       expenseMonthFilter = expenseMonthFilterEl.value;
 
-      const filteredExpList = expenseMonthFilter === 'ALL'
-        ? state.expenses
-        : state.expenses.filter((e) => getSalaryCycleForDate(e.dateISO).id === expenseMonthFilter);
+      const sq = (expenseSearchQuery || '').trim().toLowerCase();
+      const filteredExpList = state.expenses.filter((e) => {
+        if (expenseMonthFilter !== 'ALL' && getSalaryCycleForDate(e.dateISO).id !== expenseMonthFilter) return false;
+        const pm = e.paymentMethod || 'debit';
+        if (expensePayFilter !== 'ALL' && pm !== expensePayFilter) return false;
+        if (sq) {
+          const hay = `${e.label || ''} ${e.category || ''} ${e.amount || ''} ${e.dateISO || ''} ${e.date || ''} ${pm === 'credit' ? 'cc credit card' : (pm === 'pakistan' ? 'pk pakistan pkr' : 'salary debit')}`.toLowerCase();
+          if (!hay.includes(sq)) return false;
+        }
+        return true;
+      });
 
       expenseCountEl.textContent =
         filteredExpList.length === 1 ? '1 item' : `${filteredExpList.length} items`;
@@ -8551,6 +8595,21 @@
     });
 
     // Pagination & Month Filter Listeners
+    if (expenseSearchInput) {
+      expenseSearchInput.addEventListener('input', () => {
+        expenseSearchQuery = expenseSearchInput.value;
+        expensePageSize = 8;
+        render();
+      });
+    }
+    if (expensePayFilterEl) {
+      expensePayFilterEl.addEventListener('change', () => {
+        expensePayFilter = expensePayFilterEl.value;
+        expensePageSize = 8;
+        render();
+      });
+    }
+
     expenseMonthFilterEl.addEventListener('change', () => {
       expenseMonthFilter = expenseMonthFilterEl.value;
       expensePageSize = 8;
