@@ -68,7 +68,7 @@
           aria-label="Refresh app to load latest update"
           class="text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100 px-2.5 py-1 rounded-full transition active:scale-95"
         >
-          🔄 v1.3
+          🔄 v1.4
         </button>
       </div>
     </header>
@@ -1875,6 +1875,54 @@
       </div>
 
       <div class="overflow-y-auto flex-1 space-y-4 pr-0.5">
+        <!-- Live Cloud Sync (iPhone <-> Laptop) -->
+        <div class="bg-blue-50/70 border border-blue-100 rounded-2xl p-3.5">
+          <div class="flex items-center justify-between gap-2 mb-1">
+            <p class="text-xs font-bold text-blue-900">☁️ Live Cloud Sync (iPhone ↔ Laptop)</p>
+            <span id="cloud-sync-badge" class="text-[10px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200">Off</span>
+          </div>
+          <p class="text-[11px] text-slate-600 mb-2.5 leading-relaxed">
+            Syncs your data privately across your iPhone and laptop using your Cloudflare Worker.
+          </p>
+          <form id="cloud-sync-form" class="flex flex-col gap-2" novalidate>
+            <input
+              id="cloud-sync-url-input"
+              type="url"
+              placeholder="Cloudflare Worker URL (https://...workers.dev)"
+              aria-label="Cloudflare Worker URL for Cloud Sync"
+              class="w-full px-3 py-2 rounded-xl bg-white border border-blue-200 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+            <div class="flex gap-1.5">
+              <input
+                id="cloud-sync-key-input"
+                type="password"
+                maxlength="64"
+                placeholder="Your Secret Sync Passphrase"
+                aria-label="Secret Sync Passphrase"
+                class="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white border border-blue-200 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+              <button type="submit" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shrink-0 transition active:scale-95">Save</button>
+            </div>
+          </form>
+          <div class="grid grid-cols-2 gap-2 mt-2.5">
+            <button
+              id="cloud-push-btn"
+              type="button"
+              class="py-2 px-2.5 rounded-xl bg-white hover:bg-blue-50 border border-blue-200 text-blue-700 text-[11px] font-semibold transition active:scale-95"
+            >
+              ⬆️ Push to Cloud
+            </button>
+            <button
+              id="cloud-pull-btn"
+              type="button"
+              class="py-2 px-2.5 rounded-xl bg-white hover:bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-semibold transition active:scale-95"
+            >
+              ⬇️ Pull from Cloud
+            </button>
+          </div>
+          <p id="cloud-sync-status" class="text-[10px] font-medium text-slate-500 mt-2">Enter your Worker URL and a secret passphrase on both devices to enable auto-sync.</p>
+        </div>
+
         <!-- Export to Excel & Google Sheets -->
         <div class="bg-slate-50 border border-slate-100 rounded-2xl p-3.5">
           <p class="text-xs font-bold text-slate-800 mb-1">Export to Excel &amp; Google Sheets</p>
@@ -2386,7 +2434,13 @@
       }
     }
 
+    let isPullingFromCloud = false;
+    let cloudPushTimer = null;
+
     function saveState(skipSnapshot = false) {
+      if (!isPullingFromCloud) {
+        state.updatedAtTs = Date.now();
+      }
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       } catch (e) {
@@ -2394,6 +2448,9 @@
       }
       if (!skipSnapshot) {
         saveAutoSnapshot();
+      }
+      if (!isPullingFromCloud && typeof scheduleCloudPush === 'function') {
+        scheduleCloudPush();
       }
     }
 
@@ -3590,9 +3647,12 @@
       const workerUrl = getStockWorkerUrl();
       if (workerUrl) {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 6000);
+        const timer = setTimeout(() => controller.abort(), 7000);
         try {
-          const res = await fetch(`${workerUrl}?symbol=${encodeURIComponent(upper)}`, { signal: controller.signal });
+          const res = await fetch(`${workerUrl}?symbol=${encodeURIComponent(upper)}&_t=${Date.now()}`, {
+            signal: controller.signal,
+            cache: 'no-store'
+          });
           clearTimeout(timer);
           if (res.ok) {
             const data = await res.json();
@@ -3610,7 +3670,7 @@
         }
       }
 
-      // 1. For PSX stocks (*.KA), try CORS-enabled PSX Terminal real-time feed first
+      // 1. For PSX stocks (*.KA), never fall back to Yahoo Finance (Yahoo returns broken pre-split prices for PSX stocks)
       if (upper.endsWith('.KA')) {
         const cleanSym = upper.replace(/\.KA$/, '');
         const psxMap = await fetchPsxTerminalMap();
@@ -3622,9 +3682,10 @@
             exchange: 'PSX'
           };
         }
+        return null;
       }
 
-      // 2. Try Yahoo Finance via CORS-friendly endpoints (and direct fallback)
+      // 2. Global stocks: Try Yahoo Finance via CORS-friendly endpoints (and direct fallback)
       const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(upper)}?interval=1d&range=1d`;
       const endpoints = [
         `https://corsproxy.io/?url=${encodeURIComponent(yahooUrl)}`,
@@ -7397,6 +7458,197 @@
       }
     }
     syncStockFeedUi();
+
+    // --- Live Cloud Sync (Cloudflare Worker + KV) ---
+    const SYNC_KEY_STORAGE = 'quickspend_cloud_sync_key';
+    const cloudSyncBadgeEl = document.getElementById('cloud-sync-badge');
+    const cloudSyncForm = document.getElementById('cloud-sync-form');
+    const cloudSyncUrlInput = document.getElementById('cloud-sync-url-input');
+    const cloudSyncKeyInput = document.getElementById('cloud-sync-key-input');
+    const cloudPushBtn = document.getElementById('cloud-push-btn');
+    const cloudPullBtn = document.getElementById('cloud-pull-btn');
+    const cloudSyncStatusEl = document.getElementById('cloud-sync-status');
+
+    function getSyncKey() {
+      try {
+        return (localStorage.getItem(SYNC_KEY_STORAGE) || '').trim();
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function countTotalRecords(st) {
+      if (!st) return 0;
+      return (st.expenses?.length || 0) + (st.incomes?.length || 0) + (st.savingsTransfers?.length || 0) +
+        (st.goldHoldings?.length || 0) + (st.investments?.length || 0) + (st.otherInvestments?.length || 0) +
+        (st.pkTransfers?.length || 0) + (st.ccPayments?.length || 0);
+    }
+
+    function setCloudSyncUiStatus(badgeText, msgText, isOk = false, isErr = false) {
+      if (cloudSyncBadgeEl) {
+        cloudSyncBadgeEl.textContent = badgeText;
+        cloudSyncBadgeEl.className = isOk
+          ? 'text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200'
+          : (isErr
+            ? 'text-[10px] font-semibold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200'
+            : 'text-[10px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200');
+      }
+      if (cloudSyncStatusEl) {
+        cloudSyncStatusEl.textContent = msgText;
+        cloudSyncStatusEl.className = isErr
+          ? 'text-[10px] font-semibold text-rose-600 mt-2'
+          : (isOk ? 'text-[10px] font-semibold text-emerald-700 mt-2' : 'text-[10px] font-medium text-slate-500 mt-2');
+      }
+    }
+
+    function refreshCloudSyncInputs() {
+      const wUrl = getStockWorkerUrl();
+      const sKey = getSyncKey();
+      if (cloudSyncUrlInput) cloudSyncUrlInput.value = wUrl;
+      if (cloudSyncKeyInput) cloudSyncKeyInput.value = sKey;
+      if (wUrl && sKey) {
+        setCloudSyncUiStatus('Connected', 'Auto-sync active across iPhone & laptop.', true);
+      } else {
+        setCloudSyncUiStatus('Off', 'Enter your Worker URL and a secret passphrase on both devices to enable auto-sync.');
+      }
+    }
+
+    async function pushStateToCloud(manual = false) {
+      const wUrl = getStockWorkerUrl();
+      const sKey = getSyncKey();
+      if (!wUrl || !sKey) {
+        if (manual) showToast('Save your Worker URL and Sync Passphrase first', false);
+        return false;
+      }
+      // Safety: never auto-push an empty device over existing cloud data
+      if (!manual && countTotalRecords(state) === 0) return false;
+      setCloudSyncUiStatus('Syncing...', 'Uploading latest changes to cloud...');
+      try {
+        const res = await fetch(`${wUrl}/sync`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Sync-Key': sKey
+          },
+          body: JSON.stringify({
+            updatedAtTs: state.updatedAtTs || Date.now(),
+            state
+          })
+        });
+        if (!res.ok) {
+          const errTxt = await res.text().catch(() => '');
+          setCloudSyncUiStatus('Error', `Cloud upload failed (${res.status}). Check Worker KV binding.`, false, true);
+          if (manual) showToast(`Cloud sync failed (${res.status})`, false);
+          return false;
+        }
+        setCloudSyncUiStatus('Synced ✓', `Synced to cloud at ${formatTime(new Date())}.`, true);
+        if (manual) showToast('Pushed all data to Cloud!', false);
+        return true;
+      } catch (e) {
+        setCloudSyncUiStatus('Offline', 'Could not reach Cloud Sync right now.', false, true);
+        if (manual) showToast('Could not reach Cloud Sync', false);
+        return false;
+      }
+    }
+
+    async function pullStateFromCloud(manual = false) {
+      const wUrl = getStockWorkerUrl();
+      const sKey = getSyncKey();
+      if (!wUrl || !sKey) {
+        if (manual) showToast('Save your Worker URL and Sync Passphrase first', false);
+        return false;
+      }
+      setCloudSyncUiStatus('Syncing...', 'Checking cloud for newer data...');
+      try {
+        const res = await fetch(`${wUrl}/sync?_t=${Date.now()}`, {
+          method: 'GET',
+          cache: 'no-store',
+          headers: { 'X-Sync-Key': sKey }
+        });
+        if (res.status === 404) {
+          setCloudSyncUiStatus('Connected', 'No cloud backup yet — tap "Push to Cloud" from your main device.', true);
+          if (manual) showToast('No cloud data found yet — push from your iPhone first', false);
+          return false;
+        }
+        if (!res.ok) {
+          setCloudSyncUiStatus('Error', `Cloud pull failed (${res.status}). Check Worker KV binding.`, false, true);
+          if (manual) showToast(`Cloud pull failed (${res.status})`, false);
+          return false;
+        }
+        const payload = await res.json();
+        const cloudState = payload && payload.state;
+        const cloudTs = Number((payload && payload.updatedAtTs) || (cloudState && cloudState.updatedAtTs) || 0);
+        const localTs = Number(state.updatedAtTs || 0);
+        const localEmpty = countTotalRecords(state) === 0;
+
+        if (!cloudState || typeof cloudState !== 'object') {
+          setCloudSyncUiStatus('Connected', 'Cloud copy was empty.', true);
+          return false;
+        }
+
+        if (manual || localEmpty || cloudTs > localTs) {
+          isPullingFromCloud = true;
+          try {
+            applyRestoredState(cloudState);
+            state.updatedAtTs = cloudTs || Date.now();
+            saveState(true);
+            renderCategorySelector();
+            syncCategoryDropdowns();
+            render();
+          } finally {
+            isPullingFromCloud = false;
+          }
+          setCloudSyncUiStatus('Synced ✓', `Pulled latest data at ${formatTime(new Date())}.`, true);
+          if (manual) showToast('Pulled latest data from Cloud!', false);
+          return true;
+        } else {
+          setCloudSyncUiStatus('Synced ✓', `Already up to date (${formatTime(new Date())}).`, true);
+          return true;
+        }
+      } catch (e) {
+        setCloudSyncUiStatus('Offline', 'Could not reach Cloud Sync right now.', false, true);
+        if (manual) showToast('Could not reach Cloud Sync', false);
+        return false;
+      }
+    }
+
+    function scheduleCloudPush() {
+      if (!getStockWorkerUrl() || !getSyncKey()) return;
+      clearTimeout(cloudPushTimer);
+      cloudPushTimer = setTimeout(() => {
+        pushStateToCloud(false);
+      }, 1200);
+    }
+
+    if (cloudSyncForm) {
+      refreshCloudSyncInputs();
+      cloudSyncForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const cleanUrl = (cloudSyncUrlInput.value || '').trim().replace(/\/+$/, '');
+        const cleanKey = (cloudSyncKeyInput.value || '').trim();
+        try {
+          if (cleanUrl) localStorage.setItem(STOCK_FEED_KEY, cleanUrl);
+          if (cleanKey) localStorage.setItem(SYNC_KEY_STORAGE, cleanKey);
+          else localStorage.removeItem(SYNC_KEY_STORAGE);
+        } catch (e) {}
+        syncStockFeedUi();
+        refreshCloudSyncInputs();
+        if (cleanUrl && cleanKey) {
+          showToast('Cloud Sync saved! Checking cloud...', false);
+          await pullStateFromCloud(false);
+        } else {
+          showToast('Cloud Sync turned off.', false);
+        }
+      });
+    }
+
+    if (cloudPushBtn) cloudPushBtn.addEventListener('click', () => pushStateToCloud(true));
+    if (cloudPullBtn) cloudPullBtn.addEventListener('click', () => pullStateFromCloud(true));
+
+    // Auto-pull latest cloud data on launch (never blocks offline startup)
+    if (getStockWorkerUrl() && getSyncKey()) {
+      setTimeout(() => { pullStateFromCloud(false); }, 400);
+    }
 
     stockFeedToggleBtn.addEventListener('click', () => {
       syncStockFeedUi();
