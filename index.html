@@ -4930,7 +4930,7 @@
       const allCreditExp = state.expenses.filter((e) => e.paymentMethod === 'credit').reduce((s, e) => s + e.amount, 0);
       const allPkExp = state.expenses.filter((e) => e.paymentMethod === 'pakistan').reduce((s, e) => s + e.amount, 0);
       const allCcPaid = state.ccPayments.reduce((s, p) => s + p.amount, 0);
-      const allCcDue = Math.max(0, allCreditExp - allCcPaid);
+      const allCcDue = computeCcBillDue(state.expenses, state.ccPayments);
 
       const allCashSavIn = state.savingsTransfers.reduce((s, t) => s + t.amount, 0);
       const allCashSavSal = state.savingsTransfers.reduce((s, t) => s + (t.deductFromSalary !== false ? t.amount : 0), 0);
@@ -5355,6 +5355,26 @@
       });
     }
 
+    // Chronological CC Bill Due ledger: paying a prior/opening CC bill clears due to 0 without eating future CC charges
+    function computeCcBillDue(expenses, ccPayments) {
+      const events = [];
+      (expenses || []).forEach((e) => {
+        if (e.paymentMethod === 'credit') {
+          events.push({ ts: Number(e.id) || 0, dateISO: e.dateISO || '', type: 'charge', amt: Number(e.amount || 0) });
+        }
+      });
+      (ccPayments || []).forEach((p) => {
+        events.push({ ts: Number(p.id) || 0, dateISO: p.dateISO || '', type: 'pay', amt: Number(p.amount || 0) });
+      });
+      events.sort((a, b) => (a.dateISO || '').localeCompare(b.dateISO || '') || (a.ts - b.ts));
+      let due = 0;
+      events.forEach((ev) => {
+        if (ev.type === 'charge') due += ev.amt;
+        else due = Math.max(0, due - ev.amt);
+      });
+      return Number(due.toFixed(2));
+    }
+
     // --- Main Render UI ---
     function render() {
       const totalIncome = state.incomes.reduce((s, i) => s + i.amount, 0);
@@ -5398,7 +5418,7 @@
       );
       const pkAccountBalance = Number((totalPkAdded - pkExpenses - totalInvestPaidFromPk - otherInvPaidFromPk).toFixed(2));
       const totalCcPaid = state.ccPayments.reduce((s, p) => s + p.amount, 0);
-      const ccBillDue = Math.max(0, Number((creditExpenses - totalCcPaid).toFixed(2)));
+      const ccBillDue = computeCcBillDue(state.expenses, state.ccPayments);
 
       const totalCashSavings = state.savingsTransfers.reduce((s, t) => s + t.amount, 0);
       const totalCashSavingsFromSalary = state.savingsTransfers.reduce(
