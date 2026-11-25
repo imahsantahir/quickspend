@@ -62,7 +62,7 @@
           💾 Backup
         </button>
         <span class="text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">
-          v1.2
+          v1.3
         </span>
       </div>
     </header>
@@ -2887,12 +2887,137 @@
       });
     }
 
+    let editingCatId = null;
+
+    function updateCategory(oldId, newName, newIcon, newSubItemsRaw) {
+      const cleanName = (newName || '').trim();
+      if (!cleanName) {
+        catModalErrorEl.textContent = 'Category name cannot be empty.';
+        catModalErrorEl.classList.remove('hidden');
+        return false;
+      }
+      const duplicate = getCategories().some(
+        (c) => c.id !== oldId && c.id.toLowerCase() === cleanName.toLowerCase()
+      );
+      if (duplicate) {
+        catModalErrorEl.textContent = 'Another category already has that name.';
+        catModalErrorEl.classList.remove('hidden');
+        return false;
+      }
+      const target = state.categories.find((c) => c.id === oldId);
+      if (!target) return false;
+
+      const subItems = (newSubItemsRaw || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(0, 12);
+
+      target.id = cleanName;
+      target.label = cleanName;
+      target.icon = newIcon || target.icon || '💵';
+      target.subItems = subItems;
+
+      // Keep past expenses linked if the category was renamed
+      if (oldId !== cleanName) {
+        state.expenses.forEach((exp) => {
+          if (exp.category === oldId) exp.category = cleanName;
+        });
+        if (selectedCategory === oldId) selectedCategory = cleanName;
+      }
+
+      editingCatId = null;
+      catModalErrorEl.classList.add('hidden');
+      saveState();
+      renderCategorySelector();
+      syncCategoryDropdowns();
+      renderManageCategoriesList();
+      render();
+      showToast(`Updated category ${target.icon} ${cleanName}`, false);
+      return true;
+    }
+
     function renderManageCategoriesList() {
       const cats = getCategories();
       manageCategoriesListEl.innerHTML = '';
       cats.forEach((cat) => {
         const li = document.createElement('li');
-        li.className = 'flex items-center justify-between py-2.5 gap-2';
+        li.className = 'py-2.5 flex flex-col gap-2';
+
+        if (editingCatId === cat.id) {
+          let draftIcon = cat.icon || '💵';
+          const editBox = document.createElement('div');
+          editBox.className = 'bg-slate-50 border border-blue-200 rounded-xl p-2.5 flex flex-col gap-2';
+
+          const iconRow = document.createElement('div');
+          iconRow.className = 'flex flex-wrap gap-1';
+          const renderEditIcons = () => {
+            iconRow.innerHTML = '';
+            CATEGORY_ICONS.forEach((ic) => {
+              const ib = document.createElement('button');
+              ib.type = 'button';
+              ib.className = ic === draftIcon
+                ? 'w-7 h-7 rounded-lg bg-blue-600 text-sm flex items-center justify-center ring-2 ring-blue-300'
+                : 'w-7 h-7 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-sm flex items-center justify-center';
+              ib.textContent = ic;
+              ib.addEventListener('click', () => {
+                draftIcon = ic;
+                renderEditIcons();
+              });
+              iconRow.appendChild(ib);
+            });
+          };
+          renderEditIcons();
+
+          const nameInput = document.createElement('input');
+          nameInput.type = 'text';
+          nameInput.maxLength = 28;
+          nameInput.value = cat.label;
+          nameInput.placeholder = 'Category name';
+          nameInput.className = 'w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500';
+
+          const picksInput = document.createElement('input');
+          picksInput.type = 'text';
+          picksInput.maxLength = 160;
+          picksInput.value = (cat.subItems || []).join(', ');
+          picksInput.placeholder = 'Quick picks (comma separated, e.g. Carrefour, Lulu, Milk)';
+          picksInput.className = 'w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500';
+
+          const btnRow = document.createElement('div');
+          btnRow.className = 'flex items-center justify-end gap-1.5';
+
+          const cancelBtn = document.createElement('button');
+          cancelBtn.type = 'button';
+          cancelBtn.className = 'px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-500 hover:bg-slate-200 transition';
+          cancelBtn.textContent = 'Cancel';
+          cancelBtn.addEventListener('click', () => {
+            editingCatId = null;
+            catModalErrorEl.classList.add('hidden');
+            renderManageCategoriesList();
+          });
+
+          const saveBtn = document.createElement('button');
+          saveBtn.type = 'button';
+          saveBtn.className = 'px-3 py-1 rounded-lg text-[11px] font-semibold text-white bg-blue-600 hover:bg-blue-700 transition';
+          saveBtn.textContent = 'Save';
+          saveBtn.addEventListener('click', () => {
+            updateCategory(cat.id, nameInput.value, draftIcon, picksInput.value);
+          });
+
+          btnRow.appendChild(cancelBtn);
+          btnRow.appendChild(saveBtn);
+
+          editBox.appendChild(iconRow);
+          editBox.appendChild(nameInput);
+          editBox.appendChild(picksInput);
+          editBox.appendChild(btnRow);
+          li.appendChild(editBox);
+          manageCategoriesListEl.appendChild(li);
+          return;
+        }
+
+        const topRow = document.createElement('div');
+        topRow.className = 'flex items-center justify-between gap-2';
 
         const left = document.createElement('div');
         left.className = 'flex items-center gap-2.5 min-w-0';
@@ -2919,15 +3044,33 @@
         left.appendChild(iconSpan);
         left.appendChild(textWrap);
 
+        const actions = document.createElement('div');
+        actions.className = 'flex items-center gap-1.5 shrink-0';
+
+        const editBtn = document.createElement('button');
+        editBtn.type = 'button';
+        editBtn.setAttribute('aria-label', `Edit category ${cat.label}`);
+        editBtn.className = 'px-2.5 py-1 rounded-lg text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 transition';
+        editBtn.textContent = 'Edit';
+        editBtn.addEventListener('click', () => {
+          editingCatId = cat.id;
+          catModalErrorEl.classList.add('hidden');
+          renderManageCategoriesList();
+        });
+
         const delBtn = document.createElement('button');
         delBtn.type = 'button';
         delBtn.setAttribute('aria-label', `Delete category ${cat.label}`);
-        delBtn.className = 'px-2.5 py-1 rounded-lg text-[11px] font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 transition shrink-0';
+        delBtn.className = 'px-2.5 py-1 rounded-lg text-[11px] font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 transition';
         delBtn.textContent = 'Delete';
         delBtn.addEventListener('click', () => deleteCategory(cat.id));
 
-        li.appendChild(left);
-        li.appendChild(delBtn);
+        actions.appendChild(editBtn);
+        actions.appendChild(delBtn);
+
+        topRow.appendChild(left);
+        topRow.appendChild(actions);
+        li.appendChild(topRow);
         manageCategoriesListEl.appendChild(li);
       });
     }
@@ -2996,6 +3139,7 @@
     }
 
     function closeCategoriesModal() {
+      editingCatId = null;
       categoriesModal.classList.add('hidden');
       categoriesModal.classList.remove('flex');
     }
