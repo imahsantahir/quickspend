@@ -62,7 +62,7 @@
           💾 Backup
         </button>
         <span class="text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">
-          v1.1
+          v1.2
         </span>
       </div>
     </header>
@@ -860,21 +860,47 @@
 
       <!-- SUB-PANEL 1: STOCKS -->
       <div id="invest-panel-stocks" class="flex flex-col gap-4">
-      <section aria-label="Realized P&amp;L and Refresh" class="ios-card px-4 py-3 flex items-center justify-between gap-2">
-        <div>
-          <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Stocks Realized P&amp;L</p>
-          <div class="flex items-baseline gap-2">
-            <p id="invest-realized-pl" class="text-sm font-bold text-slate-800 tabular-nums">QAR 0.00</p>
-            <span id="invest-holdings-count" class="text-[11px] text-slate-400">0 active stocks</span>
+      <section aria-label="Realized P&amp;L and Refresh" class="ios-card px-4 py-3 flex flex-col gap-2.5">
+        <div class="flex items-center justify-between gap-2">
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Stocks Realized P&amp;L</p>
+            <div class="flex items-baseline gap-2">
+              <p id="invest-realized-pl" class="text-sm font-bold text-slate-800 tabular-nums">QAR 0.00</p>
+              <span id="invest-holdings-count" class="text-[11px] text-slate-400">0 active stocks</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button
+              id="stock-feed-toggle-btn"
+              type="button"
+              title="Configure Live Stock Feed URL"
+              class="text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-full transition active:scale-95"
+            >
+              ⚙️ Feed
+            </button>
+            <button
+              id="refresh-stocks-btn"
+              type="button"
+              class="text-xs font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-3 py-1.5 rounded-full transition active:scale-95"
+            >
+              Refresh Live
+            </button>
           </div>
         </div>
-        <button
-          id="refresh-stocks-btn"
-          type="button"
-          class="text-xs font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-3 py-1.5 rounded-full transition active:scale-95 shrink-0"
-        >
-          Refresh Stocks
-        </button>
+        <form id="stock-feed-form" class="hidden pt-2 border-t border-slate-100 flex flex-col gap-2" novalidate>
+          <p class="text-[11px] text-slate-500">Paste your free Cloudflare Worker URL to enable live PSX &amp; global stock prices:</p>
+          <div class="flex gap-1.5">
+            <input
+              id="stock-feed-url-input"
+              type="url"
+              placeholder="https://quickspend-stocks.yourname.workers.dev"
+              aria-label="Live stock feed worker URL"
+              class="flex-1 min-w-0 px-3 py-2 rounded-xl bg-slate-100 text-xs font-medium text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+            >
+            <button type="submit" class="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold shrink-0 transition active:scale-95">Save</button>
+          </div>
+          <p id="stock-feed-status" class="text-[10px] font-medium text-slate-400"></p>
+        </form>
       </section>
 
       <!-- Brokerage Cash Balance Card -->
@@ -2547,6 +2573,11 @@
     const brokerageWithdrawCancelBtn = document.getElementById('brokerage-withdraw-cancel-btn');
     const brokerageWithdrawErrorEl = document.getElementById('brokerage-withdraw-error');
     const investOwnBrokerageBtn = document.getElementById('invest-own-brokerage-btn');
+    const stockFeedToggleBtn = document.getElementById('stock-feed-toggle-btn');
+    const stockFeedForm = document.getElementById('stock-feed-form');
+    const stockFeedUrlInput = document.getElementById('stock-feed-url-input');
+    const stockFeedStatusEl = document.getElementById('stock-feed-status');
+    const STOCK_FEED_KEY = 'quickspend_stock_worker_url';
     const investTotalPlEl = document.getElementById('invest-total-pl');
     const investRealizedPlEl = document.getElementById('invest-realized-pl');
     const investHoldingsCountEl = document.getElementById('invest-holdings-count');
@@ -3393,9 +3424,41 @@
       return null;
     }
 
+    function getStockWorkerUrl() {
+      try {
+        return (localStorage.getItem(STOCK_FEED_KEY) || '').trim().replace(/\/+$/, '');
+      } catch (e) {
+        return '';
+      }
+    }
+
     async function fetchLiveStockQuote(yahooSymbol) {
       if (!yahooSymbol) return null;
       const upper = String(yahooSymbol).toUpperCase().trim();
+
+      // 0. If user configured their personal Cloudflare Worker URL, use it first (works for both PSX & Global)
+      const workerUrl = getStockWorkerUrl();
+      if (workerUrl) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 6000);
+        try {
+          const res = await fetch(`${workerUrl}?symbol=${encodeURIComponent(upper)}`, { signal: controller.signal });
+          clearTimeout(timer);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && Number(data.price) > 0) {
+              return {
+                price: Number(data.price),
+                currency: (data.currency || (upper.endsWith('.KA') ? 'PKR' : 'USD')).toUpperCase(),
+                name: data.name || upper,
+                exchange: data.exchange || (upper.endsWith('.KA') ? 'PSX' : '')
+              };
+            }
+          }
+        } catch (e) {
+          clearTimeout(timer);
+        }
+      }
 
       // 1. For PSX stocks (*.KA), try CORS-enabled PSX Terminal real-time feed first
       if (upper.endsWith('.KA')) {
@@ -3574,7 +3637,11 @@
       let updatedCount = 0;
 
       for (const inv of state.investments) {
-        const q = await fetchLiveStockQuote(inv.yahooSymbol || inv.symbol);
+        let lookupSym = inv.yahooSymbol || inv.symbol;
+        if ((inv.currency === 'PKR' || inv.market === 'PSX') && lookupSym && !lookupSym.toUpperCase().endsWith('.KA')) {
+          lookupSym = `${lookupSym.toUpperCase()}.KA`;
+        }
+        const q = await fetchLiveStockQuote(lookupSym);
         if (q && q.price > 0) {
           inv.currentPrice = q.price;
           inv.updatedAt = formatTime(new Date());
@@ -3588,8 +3655,11 @@
         saveState();
         render();
         showToast(`Updated live prices for ${updatedCount} stock(s)!`, false);
+      } else if (!getStockWorkerUrl()) {
+        stockFeedForm.classList.remove('hidden');
+        showToast('Tap ⚙️ Feed to paste your Cloudflare Worker URL for live PSX & global quotes', false);
       } else {
-        showToast('Live stock feed unavailable right now — update prices inline below', false);
+        showToast('Could not fetch live quote — check Worker URL or update inline below', false);
       }
     }
 
@@ -7142,6 +7212,40 @@
     investBuyInput.addEventListener('input', () => investErrorEl.classList.add('hidden'));
 
     refreshStocksBtn.addEventListener('click', refreshAllLiveStockPrices);
+
+    function syncStockFeedUi() {
+      const saved = getStockWorkerUrl();
+      if (stockFeedUrlInput) stockFeedUrlInput.value = saved;
+      if (stockFeedStatusEl) {
+        stockFeedStatusEl.textContent = saved
+          ? '✅ Live Feed connected — tap Refresh Live to fetch PSX & global quotes.'
+          : 'Not connected yet. Paste your Cloudflare Worker URL and tap Save.';
+        stockFeedStatusEl.className = saved
+          ? 'text-[10px] font-semibold text-emerald-600'
+          : 'text-[10px] font-medium text-slate-400';
+      }
+      if (stockFeedToggleBtn) {
+        stockFeedToggleBtn.textContent = saved ? '⚙️ Feed ✓' : '⚙️ Feed';
+      }
+    }
+    syncStockFeedUi();
+
+    stockFeedToggleBtn.addEventListener('click', () => {
+      syncStockFeedUi();
+      stockFeedForm.classList.toggle('hidden');
+    });
+
+    stockFeedForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const clean = (stockFeedUrlInput.value || '').trim().replace(/\/+$/, '');
+      try {
+        if (clean) localStorage.setItem(STOCK_FEED_KEY, clean);
+        else localStorage.removeItem(STOCK_FEED_KEY);
+      } catch (e) {}
+      syncStockFeedUi();
+      stockFeedForm.classList.add('hidden');
+      showToast(clean ? 'Live Stock Feed URL saved! Tap Refresh Live.' : 'Live Stock Feed URL cleared.', false);
+    });
 
     brokerageWithdrawToggleBtn.addEventListener('click', () => {
       const bal = getBrokerageCashQAR();
